@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Turnos 2026</title>
+    <meta name="description" content="Sistema de gestión de turnos de trabajo con cálculo automático de ganancias">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📅</text></svg>">
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="app-page">
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="app-logo">
+                <span class="app-logo-icon">📅</span>
+                <div>
+                    <h1>Gestión de Turnos</h1>
+                    <span>Sistema de Control de Horas</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="tab-nav">
+                    <button class="tab-btn active" data-tab="calendar">📅 Calendario</button>
+                    <button class="tab-btn" data-tab="dashboard">📊 Dashboard</button>
+                </div>
+                <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Cambiar Tema"
+                    style="font-size:1.2rem; cursor:pointer; background:none; border:none; margin-right:10px;">🌙</button>
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">
+                        <span class="user-avatar-initials" id="headerInitials">U</span>
+                        <img id="headerAvatarImg" class="user-avatar-img hidden" src="" alt="Avatar">
+                    </div>
+                    <span id="username"></span>
+                </div>
+                <button id="settingsBtn" class="btn btn-outline btn-sm">
+                    ⚙️ Configuración
+                </button>
+                <button id="logoutBtn" class="btn btn-outline btn-sm">
+                    🚪 Salir
+                </button>
+            </div>
+        </header>
+
+        <!-- Calendar Tab -->
+        <div id="calendarTab" class="tab-content active">
+            <!-- Year Navigation -->
+            <div class="year-nav">
+                <button id="prevYear">←</button>
+                <h2 id="currentYear">2026</h2>
+                <button id="nextYear">→</button>
+            </div>
+
+            <!-- Legend -->
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #90cdf4"></div>
+                    <span>Lun-Jue (<span id="legendShort">3</span>h)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #f6e05e"></div>
+                    <span>Vie-Sáb (<span id="legendLong">4</span>h)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #fed7d7"></div>
+                    <span>Día libre (click para marcar)</span>
+                </div>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="calendar-grid" id="calendarGrid">
+                <!-- 12 months will be rendered here -->
+            </div>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboardTab" class="tab-content">
+            <div class="dashboard-header">
+                <h2>📊 Dashboard Anual <span id="dashboardYear">2026</span></h2>
+            </div>
+
+            <!-- Main Stats -->
+            <div class="dashboard-stats" id="dashboardStats">
+                <!-- Populated by JS -->
+            </div>
+
+            <!-- Monthly Chart -->
+            <div class="dashboard-chart">
+                <h3>📈 Ingresos por Mes</h3>
+                <div class="chart-container" id="monthlyChart">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Monthly Table -->
+            <div class="dashboard-table">
+                <h3>📋 Detalle Mensual</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mes</th>
+                            <th>Horas</th>
+                            <th>Días Trabajados</th>
+                            <th>Días Libres</th>
+                            <th>Bruto</th>
+                            <th>Líquido Actual</th>
+                            <th>Líquido Proyectado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monthlyTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Day Modal -->
+    <div class="modal-overlay" id="editDayModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="editDayTitle">Editar Día</h3>
+                <button class="modal-close" id="closeEditDay">×</button>
+            </div>
+            <div class="edit-day-content">
+                <div class="form-group">
+                    <label>Horas trabajadas:</label>
+                    <input type="number" id="editDayHours" min="0" max="24" step="0.5">
+                </div>
+
+                <div class="quick-actions">
+                    <button class="btn btn-outline btn-sm" id="btnSetFree">🏖️ Libre (0h)</button>
+                    <button class="btn btn-outline btn-sm" id="btnSetShort">🔵 <span id="lblShort">3</span>h</button>
+                    <button class="btn btn-outline btn-sm" id="btnSetLong">🟡 <span id="lblLong">4</span>h</button>
+                    <button class="btn btn-outline btn-sm" id="btnSetDefault">🔄 Default</button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary btn-full" id="saveDayBtn">💾 Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h3>⚙️ Configuración</h3>
+                <button class="modal-close" id="closeSettings">×</button>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="settings-tabs">
+                <button class="settings-tab active" data-tab="profile">👤 Perfil</button>
+                <button class="settings-tab" data-tab="payment">💰 Pago</button>
+                <button class="settings-tab" data-tab="hours">⏰ Horas</button>
+                <button class="settings-tab" data-tab="security">🔒 Seguridad</button>
+            </div>
+
+            <!-- Tab: Perfil -->
+            <div class="settings-tab-content active" id="tab-profile">
+                <div class="profile-photo-section">
+                    <div class="profile-photo-preview" id="profilePhotoPreview">
+                        <span class="profile-initials" id="profileInitials">U</span>
+                        <img id="profilePhotoImg" class="profile-photo-img hidden" src="" alt="Foto de perfil">
+                    </div>
+                    <div class="profile-photo-actions">
+                        <label for="profilePhotoInput" class="btn btn-outline btn-sm">📷 Cambiar Foto</label>
+                        <input type="file" id="profilePhotoInput" accept="image/*" class="hidden">
+                        <button id="removePhotoBtn" class="btn btn-outline btn-sm hidden">🗑️ Eliminar</button>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <label for="displayName">Nombre de visualización</label>
+                    <input type="text" id="displayName" placeholder="¿Cómo te llamas?">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary btn-full" id="saveProfile">💾 Guardar Perfil</button>
+                </div>
+            </div>
+
+            <!-- Tab: Pago -->
+            <div class="settings-tab-content" id="tab-payment">
+                <div class="settings-row">
+                    <label for="hourlyRate">Tarifa por hora (CLP)</label>
+                    <input type="number" id="hourlyRate" value="12500" min="0" step="100">
+                </div>
+                <div class="settings-row">
+                    <label for="discountPercent">Descuento (%)</label>
+                    <input type="number" id="discountPercent" value="15" min="0" max="100" step="0.5">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary btn-full" id="savePayment">💾 Guardar Configuración de Pago</button>
+                </div>
+            </div>
+
+            <!-- Tab: Horas -->
+            <div class="settings-tab-content" id="tab-hours">
+                <div class="settings-row">
+                    <label for="hoursShort">Lunes a Jueves (horas)</label>
+                    <input type="number" id="hoursShort" value="3" min="0" max="12" step="0.5">
+                </div>
+                <div class="settings-row">
+                    <label for="hoursLong">Viernes y Sábado (horas)</label>
+                    <input type="number" id="hoursLong" value="4" min="0" max="12" step="0.5">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary btn-full" id="saveHours">💾 Guardar Horas</button>
+                </div>
+            </div>
+
+            <!-- Tab: Seguridad -->
+            <div class="settings-tab-content" id="tab-security">
+                <div class="settings-row">
+                    <label for="currentPassword">Contraseña actual</label>
+                    <input type="password" id="currentPassword" placeholder="Tu contraseña actual">
+                </div>
+                <div class="settings-row">
+                    <label for="newPassword">Nueva contraseña</label>
+                    <input type="password" id="newPassword" placeholder="Mínimo 4 caracteres">
+                </div>
+                <div class="settings-row">
+                    <label for="confirmPassword">Confirmar nueva contraseña</label>
+                    <input type="password" id="confirmPassword" placeholder="Repite la nueva contraseña">
+                </div>
+                <div id="passwordMessage" class="message hidden"></div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary btn-full" id="changePasswordBtn">🔒 Cambiar Contraseña</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+
+</html>
