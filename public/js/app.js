@@ -15,6 +15,7 @@ const state = {
     settings: { hourly_rate: 12500, hours_short: 3, hours_long: 4, discount_percent: 15.25 },
     username: '',
     selectedDate: null,
+    calMode: (() => { try { return localStorage.getItem('cal_mode') || 'month'; } catch (e) { return 'month'; } })(),
     pendingPhoto: undefined
 };
 
@@ -162,8 +163,8 @@ async function loadSettings() {
 
 function updateHoursLabels() {
     const { hours_short, hours_long } = state.settings;
-    $('legendShort').textContent = formatHours(Number(hours_short));
-    $('legendLong').textContent = formatHours(Number(hours_long));
+    document.querySelectorAll('.legend-short').forEach(el => { el.textContent = formatHours(Number(hours_short)); });
+    document.querySelectorAll('.legend-long').forEach(el => { el.textContent = formatHours(Number(hours_long)); });
     $('presetShort').textContent = `${formatHours(Number(hours_short))} h`;
     $('presetLong').textContent = `${formatHours(Number(hours_long))} h`;
     document.querySelector('[data-preset="short"]').dataset.hours = hours_short;
@@ -207,15 +208,17 @@ function switchView(view) {
 
 // ---------- Calendar ----------
 function setupCalendar() {
-    $('prevMonth').addEventListener('click', () => changeMonth(-1));
-    $('nextMonth').addEventListener('click', () => changeMonth(1));
+    $('prevMonth').addEventListener('click', () => step(-1));
+    $('nextMonth').addEventListener('click', () => step(1));
     $('todayBtn').addEventListener('click', () => {
         const t = new Date();
-        goToMonth(t.getFullYear(), t.getMonth());
+        goToMonth(t.getFullYear(), t.getMonth()).then(() => {
+            if (state.calMode === 'year') scrollToCurrentMini();
+        });
     });
-    $('monthLabel').addEventListener('click', () => {
-        const t = new Date();
-        goToMonth(t.getFullYear(), t.getMonth());
+
+    document.querySelectorAll('[data-cal-mode]').forEach(btn => {
+        btn.addEventListener('click', () => setCalMode(btn.dataset.calMode));
     });
 
     $('daysGrid').addEventListener('click', (e) => {
@@ -223,20 +226,48 @@ function setupCalendar() {
         if (day) openSheet(day.dataset.date);
     });
 
-    // Swipe horizontal para cambiar de mes
-    let startX = null, startY = null;
-    const grid = $('daysGrid');
-    grid.addEventListener('touchstart', (e) => {
-        startX = e.touches[0].clientX;
-        startY = e.touches[0].clientY;
-    }, { passive: true });
-    grid.addEventListener('touchend', (e) => {
-        if (startX === null) return;
-        const dx = e.changedTouches[0].clientX - startX;
-        const dy = e.changedTouches[0].clientY - startY;
-        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) changeMonth(dx < 0 ? 1 : -1);
-        startX = null;
+    $('yearGrid').addEventListener('click', (e) => {
+        const day = e.target.closest('.mini-day[data-date]');
+        if (day) return openSheet(day.dataset.date);
+        const head = e.target.closest('[data-open-month]');
+        if (head) {
+            state.month = Number(head.dataset.openMonth);
+            setCalMode('month');
+            window.scrollTo({ top: 0 });
+        }
     });
+
+    // Swipe horizontal para cambiar de mes (o de año en la vista anual)
+    for (const el of [$('daysGrid'), $('yearGrid')]) {
+        let startX = null, startY = null;
+        el.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        }, { passive: true });
+        el.addEventListener('touchend', (e) => {
+            if (startX === null) return;
+            const dx = e.changedTouches[0].clientX - startX;
+            const dy = e.changedTouches[0].clientY - startY;
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx < 0 ? 1 : -1);
+            startX = null;
+        });
+    }
+
+    setCalMode(state.calMode);
+}
+
+function setCalMode(mode) {
+    state.calMode = mode === 'year' ? 'year' : 'month';
+    try { localStorage.setItem('cal_mode', state.calMode); } catch (e) { /* sin almacenamiento */ }
+    document.querySelectorAll('[data-cal-mode]').forEach(b => b.classList.toggle('active', b.dataset.calMode === state.calMode));
+    $('prevMonth').setAttribute('aria-label', state.calMode === 'year' ? 'Año anterior' : 'Mes anterior');
+    $('nextMonth').setAttribute('aria-label', state.calMode === 'year' ? 'Año siguiente' : 'Mes siguiente');
+    renderCalendar();
+}
+
+function step(delta) {
+    if (state.calMode === 'year') goToMonth(state.year + delta, state.month);
+    else changeMonth(delta);
 }
 
 function changeMonth(delta) {
@@ -262,8 +293,16 @@ async function goToMonth(year, month) {
 }
 
 function renderCalendar() {
+    const isYear = state.calMode === 'year';
+    $('monthView').classList.toggle('hidden', isYear);
+    $('yearView').classList.toggle('hidden', !isYear);
+    $('monthLabel').textContent = isYear ? String(state.year) : `${MONTHS[state.month]} ${state.year}`;
+    if (isYear) renderYear();
+    else renderMonth();
+}
+
+function renderMonth() {
     const { year, month } = state;
-    $('monthLabel').textContent = `${MONTHS[month]} ${year}`;
 
     const first = new Date(year, month, 1).getDay();
     const offset = first === 0 ? 6 : first - 1; // Semana inicia lunes
@@ -317,6 +356,80 @@ function renderMonthSummary() {
             <div class="stat"><div class="stat-label">Días libres</div><div class="stat-value num">${s.off}</div></div>
         </div>
     `;
+}
+
+// ---------- Year overview ----------
+const clpCompact = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', notation: 'compact', maximumFractionDigits: 1 });
+
+function renderYear() {
+    const year = state.year;
+    const t = new Date();
+    const tKey = todayKey();
+    const loaded = !!state.overrides[year];
+    const currentMonth = t.getFullYear() === year ? t.getMonth() : -1;
+
+    let totalLiquido = 0, totalToDate = 0, totalHours = 0, totalWorked = 0;
+    let html = '';
+
+    for (let m = 0; m < 12; m++) {
+        const s = monthStats(year, m);
+        totalLiquido += s.liquido;
+        totalToDate += s.liquidoToDate;
+        totalHours += s.hours;
+        totalWorked += s.worked;
+
+        const first = new Date(year, m, 1).getDay();
+        const offset = first === 0 ? 6 : first - 1;
+        const days = new Date(year, m + 1, 0).getDate();
+
+        let cells = '';
+        for (let i = 0; i < offset; i++) cells += '<span class="mini-day empty"></span>';
+        for (let d = 1; d <= days; d++) {
+            const key = toKey(year, m, d);
+            const info = getDayInfo(key);
+            const cls = ['mini-day', info.type];
+            if (info.isOverride) cls.push('override');
+            if (key === tKey) cls.push('today');
+            else if (key < tKey) cls.push('past');
+            const label = `${d} de ${MONTHS[m]}: ${info.hours ? `${formatHours(info.hours)} horas` : 'libre'}`;
+            cells += `<button class="${cls.join(' ')}" data-date="${key}" aria-label="${label}"${loaded ? '' : ' disabled'}>${d}</button>`;
+        }
+
+        html += `
+            <div class="mini${m === currentMonth ? ' current' : ''}" data-month="${m}">
+                <button class="mini-head" data-open-month="${m}">
+                    <span class="mini-name">${capitalize(MONTHS[m])}</span>
+                    <span class="mini-value num">${clpCompact.format(s.liquido)}</span>
+                </button>
+                <div class="mini-days">${cells}</div>
+                <div class="mini-foot">${formatHours(s.hours)} h · ${s.worked} ${s.worked === 1 ? 'turno' : 'turnos'}</div>
+            </div>`;
+    }
+
+    $('yearGrid').innerHTML = html;
+
+    const pct = totalLiquido > 0 ? Math.min(100, (totalToDate / totalLiquido) * 100) : 0;
+    const isPast = year < t.getFullYear();
+    const isFuture = year > t.getFullYear();
+    $('yearSummary').innerHTML = `
+        <div class="hero">
+            <p class="eyebrow">Líquido ${isPast ? '' : 'proyectado '}· ${year}</p>
+            <div class="hero-value num">${formatCurrency(totalLiquido)}</div>
+            <p class="hero-sub">${isPast || isFuture
+                ? `${formatHours(totalHours)} h · ${totalWorked} días de turno`
+                : `${formatCurrency(totalToDate)} ganados a la fecha · ${pct.toFixed(0)}%`}</p>
+            ${!isPast && !isFuture ? `<div class="progress"><i style="width:${pct}%"></i></div>` : ''}
+        </div>
+        <div class="stats stats-3">
+            <div class="stat"><div class="stat-label">Horas</div><div class="stat-value num">${formatHours(totalHours)}</div></div>
+            <div class="stat"><div class="stat-label">Días de turno</div><div class="stat-value num">${totalWorked}</div></div>
+            <div class="stat"><div class="stat-label">Por mes</div><div class="stat-value num">${clpCompact.format(totalLiquido / 12)}</div></div>
+        </div>`;
+}
+
+function scrollToCurrentMini() {
+    const el = document.querySelector('.mini.current');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // ---------- Day sheet ----------

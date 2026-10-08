@@ -82,28 +82,48 @@
 
             <!-- ============ CALENDAR ============ -->
             <section class="view active" id="view-calendar">
-                <div class="month-bar">
-                    <button class="icon-btn" id="prevMonth" aria-label="Mes anterior"><svg class="ico"><use href="#i-left"/></svg></button>
-                    <button class="month-label" id="monthLabel">Octubre 2026</button>
-                    <button class="icon-btn" id="nextMonth" aria-label="Mes siguiente"><svg class="ico"><use href="#i-right"/></svg></button>
+                <div class="cal-toolbar">
+                    <div class="segmented segmented-sm" id="calModeSegment" role="tablist" aria-label="Vista">
+                        <button class="active" data-cal-mode="month" role="tab">Mes</button>
+                        <button data-cal-mode="year" role="tab">Año</button>
+                    </div>
                     <button class="chip chip-ghost" id="todayBtn">Hoy</button>
                 </div>
 
-                <div class="calendar-layout">
+                <div class="month-bar">
+                    <button class="icon-btn" id="prevMonth" aria-label="Anterior"><svg class="ico"><use href="#i-left"/></svg></button>
+                    <span class="month-label" id="monthLabel">Octubre 2026</span>
+                    <button class="icon-btn" id="nextMonth" aria-label="Siguiente"><svg class="ico"><use href="#i-right"/></svg></button>
+                </div>
+
+                <!-- Vista mes -->
+                <div class="calendar-layout" id="monthView">
                     <div class="card calendar-card">
                         <div class="weekdays">
                             <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
                         </div>
                         <div class="days" id="daysGrid"></div>
                         <div class="legend">
-                            <span><i class="dot dot-short"></i><em>Lun–Jue <b id="legendShort">3</b>h</em></span>
-                            <span><i class="dot dot-long"></i><em>Vie–Sáb <b id="legendLong">4</b>h</em></span>
+                            <span><i class="dot dot-short"></i><em>Lun–Jue <b class="legend-short">3</b>h</em></span>
+                            <span><i class="dot dot-long"></i><em>Vie–Sáb <b class="legend-long">4</b>h</em></span>
                             <span><i class="dot dot-custom"></i>Editado</span>
                             <span><i class="dot dot-off"></i>Libre</span>
                         </div>
                     </div>
 
                     <div class="month-summary" id="monthSummary"></div>
+                </div>
+
+                <!-- Vista año -->
+                <div class="year-view hidden" id="yearView">
+                    <div class="year-summary" id="yearSummary"></div>
+                    <div class="legend legend-year">
+                        <span><i class="dot dot-short"></i><em>Lun–Jue <b class="legend-short">3</b>h</em></span>
+                        <span><i class="dot dot-long"></i><em>Vie–Sáb <b class="legend-long">4</b>h</em></span>
+                        <span><i class="dot dot-custom"></i>Editado</span>
+                        <span><i class="dot dot-off"></i>Libre</span>
+                    </div>
+                    <div class="year-grid" id="yearGrid"></div>
                 </div>
             </section>
 

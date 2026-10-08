@@ -785,6 +785,143 @@ img {
     margin-top: 2px;
 }
 
+/* ---------- Calendar toolbar ---------- */
+.cal-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.segmented-sm {
+    width: 168px;
+    padding: 3px;
+}
+
+.segmented-sm button {
+    height: 30px;
+    font-size: 13px;
+}
+
+/* ---------- Year overview ---------- */
+.year-view {
+    display: grid;
+    gap: 14px;
+}
+
+.year-summary {
+    display: grid;
+    gap: 10px;
+}
+
+.stats-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.stats-3 .stat-value {
+    font-size: 17px;
+}
+
+.legend-year {
+    margin: 0;
+    padding: 0 4px;
+}
+
+.year-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.mini {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 10px 8px 10px;
+    scroll-margin: 80px;
+}
+
+.mini.current {
+    border-color: var(--ink);
+}
+
+.mini-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    width: 100%;
+    padding: 0 4px 8px;
+    gap: 6px;
+}
+
+.mini-name {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.mini-value {
+    font-size: 12px;
+    color: var(--ink-2);
+    font-weight: 500;
+}
+
+.mini-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.mini-day {
+    aspect-ratio: 1;
+    border-radius: 5px;
+    font-size: 9.5px;
+    font-weight: 500;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    position: relative;
+}
+
+.mini-day.short {
+    background: var(--short);
+    color: var(--short-ink);
+}
+
+.mini-day.long {
+    background: var(--long);
+    color: var(--long-ink);
+}
+
+.mini-day.custom {
+    background: var(--custom);
+    color: var(--custom-ink);
+}
+
+.mini-day.off {
+    color: var(--off-ink);
+}
+
+.mini-day.past:not(.today) {
+    opacity: .6;
+}
+
+.mini-day.today {
+    box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+
+.mini-foot {
+    font-size: 11.5px;
+    color: var(--muted);
+    padding: 8px 4px 0;
+}
+
+@media (min-width: 600px) {
+    .year-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
 /* ---------- Summary ---------- */
 #summaryContent {
     display: grid;
@@ -1264,6 +1401,48 @@ img {
 
     .stats-4 {
         grid-template-columns: repeat(4, 1fr);
+    }
+
+    .year-view {
+        grid-template-columns: minmax(0, 1fr) 300px;
+        align-items: start;
+    }
+
+    .year-summary {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        position: sticky;
+        top: 24px;
+    }
+
+    .legend-year {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .year-grid {
+        grid-column: 1;
+        grid-row: 2;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .stats-3 {
+        grid-template-columns: 1fr;
+    }
+
+    .mini-day {
+        font-size: 10.5px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .mini-day:not(.empty):hover {
+        box-shadow: inset 0 0 0 1.5px var(--line-strong);
+    }
+
+    .mini-head:hover .mini-name {
+        text-decoration: underline;
+        text-underline-offset: 3px;
     }
 
     .chart {

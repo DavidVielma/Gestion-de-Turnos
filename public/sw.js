@@ -1,6 +1,6 @@
 // Service worker — Turnos v3
 // Cachea la interfaz para que la app abra rápido y funcione como app instalada.
-const CACHE = 'turnos-v3.0.0';
+const CACHE = 'turnos-v3.1.0';
 const SHELL = [
     '/css/styles.css',
     '/js/app.js',
