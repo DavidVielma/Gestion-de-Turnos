@@ -208,13 +208,18 @@ function switchView(view) {
 
 // ---------- Calendar ----------
 function setupCalendar() {
-    $('prevMonth').addEventListener('click', () => step(-1));
-    $('nextMonth').addEventListener('click', () => step(1));
+    $('prevMonth').addEventListener('click', () => animatedStep(-1));
+    $('nextMonth').addEventListener('click', () => animatedStep(1));
     $('todayBtn').addEventListener('click', () => {
         const t = new Date();
-        goToMonth(t.getFullYear(), t.getMonth()).then(() => {
-            if (state.calMode === 'year') scrollToCurrentMini();
+        const isYear = state.calMode === 'year';
+        const target = isYear ? t.getFullYear() : t.getFullYear() * 12 + t.getMonth();
+        const current = isYear ? state.year : state.year * 12 + state.month;
+        const go = () => goToMonth(t.getFullYear(), t.getMonth()).then(() => {
+            if (isYear) scrollToCurrentMini();
         });
+        if (target === current) go();
+        else slideTransition(Math.sign(target - current), go);
     });
 
     document.querySelectorAll('[data-cal-mode]').forEach(btn => {
@@ -222,11 +227,13 @@ function setupCalendar() {
     });
 
     $('daysGrid').addEventListener('click', (e) => {
+        if (swipe.suppressClick) return;
         const day = e.target.closest('.day[data-date]');
         if (day) openSheet(day.dataset.date);
     });
 
     $('yearGrid').addEventListener('click', (e) => {
+        if (swipe.suppressClick) return;
         const day = e.target.closest('.mini-day[data-date]');
         if (day) return openSheet(day.dataset.date);
         const head = e.target.closest('[data-open-month]');
@@ -237,21 +244,8 @@ function setupCalendar() {
         }
     });
 
-    // Swipe horizontal para cambiar de mes (o de año en la vista anual)
-    for (const el of [$('daysGrid'), $('yearGrid')]) {
-        let startX = null, startY = null;
-        el.addEventListener('touchstart', (e) => {
-            startX = e.touches[0].clientX;
-            startY = e.touches[0].clientY;
-        }, { passive: true });
-        el.addEventListener('touchend', (e) => {
-            if (startX === null) return;
-            const dx = e.changedTouches[0].clientX - startX;
-            const dy = e.changedTouches[0].clientY - startY;
-            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx < 0 ? 1 : -1);
-            startX = null;
-        });
-    }
+    // Deslizar horizontalmente: el calendario sigue al dedo y cambia de mes (o de año)
+    for (const el of [$('daysGrid'), $('yearGrid')]) setupSwipe(el);
 
     setCalMode(state.calMode);
 }
@@ -263,6 +257,124 @@ function setCalMode(mode) {
     $('prevMonth').setAttribute('aria-label', state.calMode === 'year' ? 'Año anterior' : 'Mes anterior');
     $('nextMonth').setAttribute('aria-label', state.calMode === 'year' ? 'Año siguiente' : 'Mes siguiente');
     renderCalendar();
+}
+
+// ---------- Swipe & transitions ----------
+const swipe = { animating: false, suppressClick: false, pending: 0 };
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const activeGrid = () => (state.calMode === 'year' ? $('yearGrid') : $('daysGrid'));
+const nextFrame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+function setupSwipe(el) {
+    let x0 = 0, y0 = 0, t0 = 0, dx = 0, axis = null, tracking = false;
+
+    el.addEventListener('touchstart', (e) => {
+        if (swipe.animating || e.touches.length > 1) return;
+        tracking = true;
+        axis = null;
+        dx = 0;
+        x0 = e.touches[0].clientX;
+        y0 = e.touches[0].clientY;
+        t0 = performance.now();
+    }, { passive: true });
+
+    el.addEventListener('touchmove', (e) => {
+        if (!tracking) return;
+        const mx = e.touches[0].clientX - x0;
+        const my = e.touches[0].clientY - y0;
+        if (!axis && Math.hypot(mx, my) > 8) axis = Math.abs(mx) > Math.abs(my) ? 'x' : 'y';
+        if (axis !== 'x') return;
+        dx = mx;
+        // Resistencia suave: se mueve menos que el dedo a medida que se aleja
+        const w = el.offsetWidth || 1;
+        const moved = dx / (1 + Math.abs(dx) / (w * 1.2));
+        el.style.transition = 'none';
+        el.style.transform = `translate3d(${moved}px,0,0) rotate(${moved / w * 1.5}deg)`;
+        el.style.opacity = String(1 - Math.min(Math.abs(moved) / w, 0.5));
+    }, { passive: true });
+
+    const end = () => {
+        if (!tracking) return;
+        tracking = false;
+        if (axis !== 'x') return;
+
+        // Evita que soltar el dedo abra el día que estaba debajo
+        swipe.suppressClick = true;
+        setTimeout(() => { swipe.suppressClick = false; }, 350);
+
+        const w = el.offsetWidth || 1;
+        const velocity = Math.abs(dx) / Math.max(performance.now() - t0, 1);
+        if (Math.abs(dx) > w * 0.22 || (velocity > 0.45 && Math.abs(dx) > 30)) {
+            animatedStep(dx < 0 ? 1 : -1, true);
+        } else {
+            el.style.transition = 'transform .35s cubic-bezier(.3,1.4,.5,1), opacity .25s ease';
+            el.style.transform = '';
+            el.style.opacity = '';
+        }
+    };
+    el.addEventListener('touchend', end);
+    el.addEventListener('touchcancel', end);
+}
+
+function animatedStep(dir, fromSwipe = false) {
+    // Toques rápidos en las flechas quedan en cola en vez de perderse
+    if (swipe.animating) {
+        if (!fromSwipe) swipe.pending += dir;
+        return;
+    }
+    slideTransition(dir, () => step(dir), fromSwipe);
+}
+
+// Sale hacia un lado, cambia el contenido y entra desde el otro
+async function slideTransition(dir, change, fromSwipe = false) {
+    if (swipe.animating) return;
+    if (reduceMotion()) {
+        await change();
+        return;
+    }
+    swipe.animating = true;
+    const el = activeGrid();
+    const w = el.offsetWidth || 300;
+    const label = $('monthLabel');
+    const summary = state.calMode === 'year' ? $('yearSummary') : $('monthSummary');
+
+    if (navigator.vibrate && fromSwipe) navigator.vibrate(8);
+
+    // Salida
+    el.style.transition = `transform ${fromSwipe ? 160 : 180}ms cubic-bezier(.4,0,1,1), opacity 160ms ease`;
+    el.style.transform = `translate3d(${-dir * w * 0.6}px,0,0) rotate(${-dir * 1.5}deg)`;
+    el.style.opacity = '0';
+    label.classList.add('label-out');
+    summary.classList.add('swap-out');
+    await wait(fromSwipe ? 160 : 180);
+
+    await change();
+
+    // Entrada desde el lado opuesto
+    const target = activeGrid();
+    target.style.transition = 'none';
+    target.style.transform = `translate3d(${dir * w * 0.45}px,0,0) rotate(${dir * 1.5}deg)`;
+    target.style.opacity = '0';
+    label.classList.remove('label-out');
+    summary.classList.remove('swap-out');
+    label.classList.add('label-in');
+    summary.classList.add('swap-in');
+    await nextFrame();
+    target.style.transition = 'transform .42s cubic-bezier(.2,.9,.25,1.05), opacity .3s ease';
+    target.style.transform = '';
+    target.style.opacity = '';
+    await wait(420);
+    label.classList.remove('label-in');
+    summary.classList.remove('swap-in');
+    target.style.transition = '';
+    swipe.animating = false;
+
+    if (swipe.pending) {
+        const next = Math.sign(swipe.pending);
+        swipe.pending -= next;
+        animatedStep(next);
+    }
 }
 
 function step(delta) {
