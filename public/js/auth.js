@@ -1,110 +1,69 @@
-// Auth.js - Login and Registration handling
+// Auth.js - Login and registration
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
 
 document.addEventListener('DOMContentLoaded', () => {
-    const loginForm = document.getElementById('loginForm');
-    const registerForm = document.getElementById('registerForm');
-    const toggleBtn = document.getElementById('toggleForm');
+    const form = document.getElementById('authForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const passwordInput = document.getElementById('password');
     const messageDiv = document.getElementById('message');
+    const tabs = document.querySelectorAll('[data-mode]');
 
-    let isLoginMode = true;
+    let mode = 'login';
 
-    // Toggle between login and register
-    toggleBtn.addEventListener('click', () => {
-        isLoginMode = !isLoginMode;
-
-        if (isLoginMode) {
-            loginForm.classList.remove('hidden');
-            registerForm.classList.add('hidden');
-            toggleBtn.textContent = 'Regístrate';
-        } else {
-            loginForm.classList.add('hidden');
-            registerForm.classList.remove('hidden');
-            toggleBtn.textContent = 'Iniciar Sesión';
-        }
-
-        hideMessage();
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            mode = tab.dataset.mode;
+            tabs.forEach(t => t.classList.toggle('active', t === tab));
+            submitBtn.textContent = mode === 'login' ? 'Ingresar' : 'Crear cuenta';
+            passwordInput.autocomplete = mode === 'login' ? 'current-password' : 'new-password';
+            passwordInput.placeholder = mode === 'login' ? '' : 'Mínimo 4 caracteres';
+            hideMessage();
+        });
     });
 
-    // Login form submit
-    loginForm.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value;
+        const password = passwordInput.value;
 
         if (!username || !password) {
-            showMessage('Por favor completa todos los campos', 'error');
-            return;
+            return showMessage('Completa usuario y contraseña', 'error');
+        }
+        if (mode === 'register' && password.length < 4) {
+            return showMessage('La contraseña debe tener al menos 4 caracteres', 'error');
         }
 
+        submitBtn.disabled = true;
         try {
-            const response = await fetch('/api/auth/login', {
+            const response = await fetch(`/api/auth/${mode}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })
             });
-
             const data = await response.json();
 
             if (response.ok) {
-                showMessage('¡Bienvenido!', 'success');
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 500);
+                window.location.href = '/';
             } else {
-                showMessage(data.error || 'Error al iniciar sesión', 'error');
+                showMessage(data.error || 'No se pudo continuar', 'error');
             }
         } catch (error) {
-            showMessage('Error de conexión', 'error');
-        }
-    });
-
-    // Register form submit
-    registerForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const username = document.getElementById('regUsername').value.trim();
-        const password = document.getElementById('regPassword').value;
-
-        if (!username || !password) {
-            showMessage('Por favor completa todos los campos', 'error');
-            return;
-        }
-
-        if (password.length < 4) {
-            showMessage('La contraseña debe tener al menos 4 caracteres', 'error');
-            return;
-        }
-
-        try {
-            const response = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                showMessage('¡Cuenta creada exitosamente!', 'success');
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 500);
-            } else {
-                showMessage(data.error || 'Error al registrar', 'error');
-            }
-        } catch (error) {
-            showMessage('Error de conexión', 'error');
+            showMessage('Sin conexión. Inténtalo de nuevo.', 'error');
+        } finally {
+            submitBtn.disabled = false;
         }
     });
 
     function showMessage(text, type) {
         messageDiv.textContent = text;
         messageDiv.className = `message ${type}`;
-        messageDiv.classList.remove('hidden');
     }
 
     function hideMessage() {
-        messageDiv.classList.add('hidden');
+        messageDiv.className = 'message hidden';
     }
 });

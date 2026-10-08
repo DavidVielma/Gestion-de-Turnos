@@ -3,74 +3,63 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión - Gestión de Turnos</title>
-    <link rel="icon"
-        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📅</text></svg>">
-    <link rel="stylesheet" href="css/styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Turnos · Iniciar sesión</title>
+    <meta name="description" content="Registra tus turnos y calcula tus honorarios. Hecho para personal de salud.">
+    <meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0b0c0c" media="(prefers-color-scheme: dark)">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Turnos">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('theme_mode');
+                if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+            } catch (e) { }
+        })();
+    </script>
+    <link rel="stylesheet" href="/css/styles.css">
 </head>
 
-<body class="login-page">
-    <div class="login-container">
-        <div class="login-card">
-            <div class="login-header">
-                <div class="login-icon">📅</div>
-                <h1>Gestión de Turnos</h1>
-                <p>Ingresa tus credenciales para continuar</p>
-            </div>
-
-            <form id="loginForm" class="login-form">
-                <div class="form-group">
-                    <label for="username">Usuario</label>
-                    <input type="text" id="username" name="username" required placeholder="Tu nombre de usuario">
-                </div>
-
-                <div class="form-group">
-                    <label for="password">Contraseña</label>
-                    <input type="password" id="password" name="password" required placeholder="Tu contraseña">
-                </div>
-
-                <button type="submit" class="btn btn-primary btn-full">
-                    <span>Iniciar Sesión</span>
-                </button>
-            </form>
-
-            <div class="login-divider">
-                <span>¿No tienes cuenta?</span>
-            </div>
-
-            <form id="registerForm" class="register-form hidden">
-                <div class="form-group">
-                    <label for="regUsername">Usuario</label>
-                    <input type="text" id="regUsername" name="username" required
-                        placeholder="Elige un nombre de usuario">
-                </div>
-
-                <div class="form-group">
-                    <label for="regPassword">Contraseña</label>
-                    <input type="password" id="regPassword" name="password" required placeholder="Mínimo 4 caracteres">
-                </div>
-
-                <button type="submit" class="btn btn-success btn-full">
-                    <span>Crear Cuenta</span>
-                </button>
-            </form>
-
-            <button id="toggleForm" class="btn btn-outline btn-full toggle-btn">
-                Regístrate
-            </button>
-
-            <div id="message" class="message hidden"></div>
+<body class="auth-page">
+    <main class="auth">
+        <div class="auth-brand">
+            <img src="/icons/icon.svg" alt="" width="56" height="56">
+            <h1>Turnos</h1>
+            <p>Tus turnos y honorarios, claros.<br>Para matronas, enfermeras, TENS, médicos y todo el equipo de salud.</p>
         </div>
 
-        <div class="login-footer">
-            <p>Sistema de Gestión de Turnos © 2026</p>
-            <p style="margin-top: 4px; font-size: 11px;">Creado con amor por David Vielma ❤️</p>
-        </div>
-    </div>
+        <div class="card auth-card">
+            <div class="segmented" role="tablist">
+                <button class="active" data-mode="login" role="tab">Ingresar</button>
+                <button data-mode="register" role="tab">Crear cuenta</button>
+            </div>
 
-    <script src="js/auth.js"></script>
+            <form id="authForm" novalidate>
+                <label class="field">
+                    <span>Usuario</span>
+                    <input type="text" id="username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+                </label>
+                <label class="field">
+                    <span>Contraseña</span>
+                    <input type="password" id="password" autocomplete="current-password" required>
+                </label>
+                <div id="message" class="message hidden"></div>
+                <button type="submit" class="btn btn-primary btn-block" id="submitBtn">Ingresar</button>
+            </form>
+        </div>
+
+        <p class="footnote">© 2026 · Hecho con cariño por David Vielma</p>
+    </main>
+
+    <script src="/js/auth.js"></script>
 </body>
 
 </html>
