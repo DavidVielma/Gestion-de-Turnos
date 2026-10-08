@@ -434,6 +434,7 @@ img {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
     margin-bottom: 18px;
 }
 
@@ -448,6 +449,7 @@ img {
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-shrink: 0;
 }
 
 .topbar-logout span {

@@ -1,10 +1,12 @@
 // Service worker — Turnos v3
 // Cachea la interfaz para que la app abra rápido y funcione como app instalada.
-const CACHE = 'turnos-v3.1.2';
+// Al cambiar CSS/JS sube VERSION aquí y el ?v= de index.html y login.html
+const VERSION = '3.1.3';
+const CACHE = `turnos-v${VERSION}`;
 const SHELL = [
-    '/css/styles.css',
-    '/js/app.js',
-    '/js/auth.js',
+    `/css/styles.css?v=${VERSION}`,
+    `/js/app.js?v=${VERSION}`,
+    `/js/auth.js?v=${VERSION}`,
     '/manifest.webmanifest',
     '/icons/icon.svg',
     '/icons/icon-192.png',
