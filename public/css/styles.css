@@ -934,6 +934,62 @@ img {
     }
 }
 
+/* ---------- Swipe transitions ---------- */
+#view-calendar {
+    overflow-x: clip;
+}
+
+.calendar-card {
+    overflow: clip;
+}
+
+#daysGrid,
+#yearGrid {
+    touch-action: pan-y;
+    will-change: transform;
+    transform-origin: 50% 120%;
+}
+
+.month-label {
+    transition: opacity .16s ease, transform .16s ease;
+}
+
+.month-label.label-out {
+    opacity: 0;
+    transform: translateY(-6px);
+}
+
+.month-label.label-in {
+    animation: label-in .35s cubic-bezier(.2, .9, .25, 1);
+}
+
+@keyframes label-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+.swap-out {
+    opacity: .35;
+    transition: opacity .16s ease;
+}
+
+.swap-in>* {
+    animation: swap-in .45s cubic-bezier(.2, .9, .25, 1) both;
+}
+
+.swap-in>*:nth-child(2) {
+    animation-delay: .05s;
+}
+
+@keyframes swap-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(.98);
+    }
+}
+
 /* ---------- Summary ---------- */
 #summaryContent {
     display: grid;
