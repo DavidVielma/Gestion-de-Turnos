@@ -633,6 +633,7 @@ function setupSettings() {
         showPhotoPreview('');
     });
     $('logoutBtn').addEventListener('click', logout);
+    $('topLogoutBtn').addEventListener('click', logout);
 
     document.querySelectorAll('[data-theme-opt]').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -756,6 +757,7 @@ async function changePassword() {
 }
 
 async function logout() {
+    if (!confirm('¿Cerrar sesión?')) return;
     try {
         await fetch('/api/auth/logout', { method: 'POST' });
     } finally {
