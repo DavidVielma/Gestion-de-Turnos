@@ -3,239 +3,279 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Turnos 2026</title>
-    <meta name="description" content="Sistema de gestión de turnos de trabajo con cálculo automático de ganancias">
-    <link rel="icon"
-        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📅</text></svg>">
-    <link rel="stylesheet" href="css/styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Turnos</title>
+    <meta name="description" content="Registra tus turnos y calcula tus honorarios. Hecho para personal de salud.">
+    <meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0b0c0c" media="(prefers-color-scheme: dark)">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Turnos">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('theme_mode');
+                if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+            } catch (e) { }
+        })();
+    </script>
+    <link rel="stylesheet" href="/css/styles.css">
 </head>
 
 <body class="app-page">
-    <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="app-logo">
-                <span class="app-logo-icon">📅</span>
+    <!-- SVG icon sprite -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <defs>
+            <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+            <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20h16"/><rect x="5.5" y="11" width="3" height="6" rx="1"/><rect x="10.5" y="7" width="3" height="10" rx="1"/><rect x="15.5" y="4" width="3" height="13" rx="1"/></symbol>
+            <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
+            <symbol id="i-left" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
+            <symbol id="i-right" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
+            <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+            <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+            <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></symbol>
+            <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4v3.5H8"/></symbol>
+            <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 4h3.5A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5H14M10 8l-4 4 4 4M6 12h9"/></symbol>
+            <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19.5h14"/></symbol>
+            <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15V4M8 7.5L12 3.5l4 4M6.5 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5"/></symbol>
+            <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.8l1.4-2h4.6l1.4 2h1.8A2.5 2.5 0 0 1 20 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z"/><circle cx="12" cy="12.5" r="3.5"/></symbol>
+        </defs>
+    </svg>
+
+    <div class="shell">
+        <!-- Sidebar (desktop) / Bottom bar (mobile) -->
+        <nav class="nav" aria-label="Principal">
+            <div class="nav-brand">
+                <img src="/icons/icon.svg" alt="" width="28" height="28">
+                <span>Turnos</span>
+            </div>
+            <button class="nav-item active" data-view="calendar">
+                <svg class="ico"><use href="#i-calendar"/></svg><span>Calendario</span>
+            </button>
+            <button class="nav-item" data-view="summary">
+                <svg class="ico"><use href="#i-chart"/></svg><span>Resumen</span>
+            </button>
+            <button class="nav-item" data-view="settings">
+                <svg class="ico"><use href="#i-settings"/></svg><span>Ajustes</span>
+            </button>
+        </nav>
+
+        <main class="main">
+            <!-- Top bar -->
+            <header class="topbar">
                 <div>
-                    <h1>Gestión de Turnos</h1>
-                    <span>Sistema de Control de Horas</span>
+                    <p class="eyebrow" id="greeting">Hola</p>
+                    <h1 class="title" id="viewTitle">Calendario</h1>
                 </div>
-            </div>
-            <div class="header-actions">
-                <div class="tab-nav">
-                    <button class="tab-btn active" data-tab="calendar">📅 Calendario</button>
-                    <button class="tab-btn" data-tab="dashboard">📊 Dashboard</button>
-                </div>
-                <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Cambiar Tema"
-                    style="font-size:1.2rem; cursor:pointer; background:none; border:none; margin-right:10px;">🌙</button>
-                <div class="user-info">
-                    <div class="user-avatar" id="userAvatar">
-                        <span class="user-avatar-initials" id="headerInitials">U</span>
-                        <img id="headerAvatarImg" class="user-avatar-img hidden" src="" alt="Avatar">
-                    </div>
-                    <span id="username"></span>
-                </div>
-                <button id="settingsBtn" class="btn btn-outline btn-sm">
-                    ⚙️ Configuración
+                <button class="avatar" id="avatarBtn" aria-label="Perfil">
+                    <span id="avatarInitials">U</span>
+                    <img id="avatarImg" class="hidden" alt="">
                 </button>
-                <button id="logoutBtn" class="btn btn-outline btn-sm">
-                    🚪 Salir
-                </button>
-            </div>
-        </header>
+            </header>
 
-        <!-- Calendar Tab -->
-        <div id="calendarTab" class="tab-content active">
-            <!-- Year Navigation -->
-            <div class="year-nav">
-                <button id="prevYear">←</button>
-                <h2 id="currentYear">2026</h2>
-                <button id="nextYear">→</button>
-            </div>
-
-            <!-- Legend -->
-            <div class="legend">
-                <div class="legend-item">
-                    <div class="legend-color" style="background: #90cdf4"></div>
-                    <span>Lun-Jue (<span id="legendShort">3</span>h)</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background: #f6e05e"></div>
-                    <span>Vie-Sáb (<span id="legendLong">4</span>h)</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background: #fed7d7"></div>
-                    <span>Día libre (click para marcar)</span>
-                </div>
-            </div>
-
-            <!-- Calendar Grid -->
-            <div class="calendar-grid" id="calendarGrid">
-                <!-- 12 months will be rendered here -->
-            </div>
-        </div>
-
-        <!-- Dashboard Tab -->
-        <div id="dashboardTab" class="tab-content">
-            <div class="dashboard-header">
-                <h2>📊 Dashboard Anual <span id="dashboardYear">2026</span></h2>
-            </div>
-
-            <!-- Main Stats -->
-            <div class="dashboard-stats" id="dashboardStats">
-                <!-- Populated by JS -->
-            </div>
-
-            <!-- Monthly Chart -->
-            <div class="dashboard-chart">
-                <h3>📈 Ingresos por Mes</h3>
-                <div class="chart-container" id="monthlyChart">
-                    <!-- Populated by JS -->
-                </div>
-            </div>
-
-            <!-- Monthly Table -->
-            <div class="dashboard-table">
-                <h3>📋 Detalle Mensual</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Mes</th>
-                            <th>Horas</th>
-                            <th>Días Trabajados</th>
-                            <th>Días Libres</th>
-                            <th>Bruto</th>
-                            <th>Líquido Actual</th>
-                            <th>Líquido Proyectado</th>
-                        </tr>
-                    </thead>
-                    <tbody id="monthlyTableBody">
-                        <!-- Populated by JS -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Day Modal -->
-    <div class="modal-overlay" id="editDayModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h3 id="editDayTitle">Editar Día</h3>
-                <button class="modal-close" id="closeEditDay">×</button>
-            </div>
-            <div class="edit-day-content">
-                <div class="form-group">
-                    <label>Horas trabajadas:</label>
-                    <input type="number" id="editDayHours" min="0" max="24" step="0.5">
+            <!-- ============ CALENDAR ============ -->
+            <section class="view active" id="view-calendar">
+                <div class="month-bar">
+                    <button class="icon-btn" id="prevMonth" aria-label="Mes anterior"><svg class="ico"><use href="#i-left"/></svg></button>
+                    <button class="month-label" id="monthLabel">Octubre 2026</button>
+                    <button class="icon-btn" id="nextMonth" aria-label="Mes siguiente"><svg class="ico"><use href="#i-right"/></svg></button>
+                    <button class="chip chip-ghost" id="todayBtn">Hoy</button>
                 </div>
 
-                <div class="quick-actions">
-                    <button class="btn btn-outline btn-sm" id="btnSetFree">🏖️ Libre (0h)</button>
-                    <button class="btn btn-outline btn-sm" id="btnSetShort">🔵 <span id="lblShort">3</span>h</button>
-                    <button class="btn btn-outline btn-sm" id="btnSetLong">🟡 <span id="lblLong">4</span>h</button>
-                    <button class="btn btn-outline btn-sm" id="btnSetDefault">🔄 Default</button>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-primary btn-full" id="saveDayBtn">💾 Guardar Cambios</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Settings Modal -->
-    <div class="modal-overlay" id="settingsModal">
-        <div class="modal modal-large">
-            <div class="modal-header">
-                <h3>⚙️ Configuración</h3>
-                <button class="modal-close" id="closeSettings">×</button>
-            </div>
-
-            <!-- Tabs Navigation -->
-            <div class="settings-tabs">
-                <button class="settings-tab active" data-tab="profile">👤 Perfil</button>
-                <button class="settings-tab" data-tab="payment">💰 Pago</button>
-                <button class="settings-tab" data-tab="hours">⏰ Horas</button>
-                <button class="settings-tab" data-tab="security">🔒 Seguridad</button>
-            </div>
-
-            <!-- Tab: Perfil -->
-            <div class="settings-tab-content active" id="tab-profile">
-                <div class="profile-photo-section">
-                    <div class="profile-photo-preview" id="profilePhotoPreview">
-                        <span class="profile-initials" id="profileInitials">U</span>
-                        <img id="profilePhotoImg" class="profile-photo-img hidden" src="" alt="Foto de perfil">
+                <div class="calendar-layout">
+                    <div class="card calendar-card">
+                        <div class="weekdays">
+                            <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
+                        </div>
+                        <div class="days" id="daysGrid"></div>
+                        <div class="legend">
+                            <span><i class="dot dot-short"></i><em>Lun–Jue <b id="legendShort">3</b>h</em></span>
+                            <span><i class="dot dot-long"></i><em>Vie–Sáb <b id="legendLong">4</b>h</em></span>
+                            <span><i class="dot dot-custom"></i>Editado</span>
+                            <span><i class="dot dot-off"></i>Libre</span>
+                        </div>
                     </div>
-                    <div class="profile-photo-actions">
-                        <label for="profilePhotoInput" class="btn btn-outline btn-sm">📷 Cambiar Foto</label>
-                        <input type="file" id="profilePhotoInput" accept="image/*" class="hidden">
-                        <button id="removePhotoBtn" class="btn btn-outline btn-sm hidden">🗑️ Eliminar</button>
+
+                    <div class="month-summary" id="monthSummary"></div>
+                </div>
+            </section>
+
+            <!-- ============ SUMMARY ============ -->
+            <section class="view" id="view-summary">
+                <div class="month-bar">
+                    <button class="icon-btn" id="prevYear" aria-label="Año anterior"><svg class="ico"><use href="#i-left"/></svg></button>
+                    <span class="month-label static" id="yearLabel">2026</span>
+                    <button class="icon-btn" id="nextYear" aria-label="Año siguiente"><svg class="ico"><use href="#i-right"/></svg></button>
+                </div>
+                <div id="summaryContent">
+                    <div class="skeleton" style="height:180px"></div>
+                </div>
+            </section>
+
+            <!-- ============ SETTINGS ============ -->
+            <section class="view" id="view-settings">
+                <div class="settings">
+                    <div class="group">
+                        <h2 class="group-title">Perfil</h2>
+                        <div class="card">
+                            <div class="profile-row">
+                                <div class="avatar avatar-lg" id="profileAvatar">
+                                    <span id="profileInitials">U</span>
+                                    <img id="profileImg" class="hidden" alt="">
+                                </div>
+                                <div class="profile-actions">
+                                    <label class="btn btn-secondary btn-sm" for="photoInput">
+                                        <svg class="ico"><use href="#i-camera"/></svg>Cambiar foto
+                                    </label>
+                                    <input type="file" id="photoInput" accept="image/*" class="hidden">
+                                    <button class="btn btn-text btn-sm hidden" id="removePhotoBtn">Quitar</button>
+                                </div>
+                            </div>
+                            <label class="field">
+                                <span>Nombre</span>
+                                <input type="text" id="displayName" placeholder="¿Cómo te llamas?" autocomplete="name">
+                            </label>
+                            <label class="field">
+                                <span>Usuario</span>
+                                <input type="text" id="usernameField" disabled>
+                            </label>
+                            <button class="btn btn-primary" id="saveProfile">Guardar perfil</button>
+                        </div>
                     </div>
-                </div>
-                <div class="settings-row">
-                    <label for="displayName">Nombre de visualización</label>
-                    <input type="text" id="displayName" placeholder="¿Cómo te llamas?">
-                </div>
-                <div class="modal-actions">
-                    <button class="btn btn-primary btn-full" id="saveProfile">💾 Guardar Perfil</button>
-                </div>
-            </div>
 
-            <!-- Tab: Pago -->
-            <div class="settings-tab-content" id="tab-payment">
-                <div class="settings-row">
-                    <label for="hourlyRate">Tarifa por hora (CLP)</label>
-                    <input type="number" id="hourlyRate" value="12500" min="0" step="100">
-                </div>
-                <div class="settings-row">
-                    <label for="discountPercent">Descuento (%)</label>
-                    <input type="number" id="discountPercent" value="15" min="0" max="100" step="0.5">
-                </div>
-                <div class="modal-actions">
-                    <button class="btn btn-primary btn-full" id="savePayment">💾 Guardar Configuración de Pago</button>
-                </div>
-            </div>
+                    <div class="group">
+                        <h2 class="group-title">Honorarios</h2>
+                        <div class="card">
+                            <label class="field">
+                                <span>Valor hora (CLP)</span>
+                                <input type="number" id="hourlyRate" inputmode="numeric" min="0" step="100">
+                            </label>
+                            <label class="field">
+                                <span>Retención / descuento (%)</span>
+                                <input type="number" id="discountPercent" inputmode="decimal" min="0" max="100" step="0.25">
+                            </label>
+                            <p class="hint">Para boletas de honorarios en Chile la retención 2026 es 15,25%.</p>
+                            <button class="btn btn-primary" id="savePayment">Guardar honorarios</button>
+                        </div>
+                    </div>
 
-            <!-- Tab: Horas -->
-            <div class="settings-tab-content" id="tab-hours">
-                <div class="settings-row">
-                    <label for="hoursShort">Lunes a Jueves (horas)</label>
-                    <input type="number" id="hoursShort" value="3" min="0" max="12" step="0.5">
-                </div>
-                <div class="settings-row">
-                    <label for="hoursLong">Viernes y Sábado (horas)</label>
-                    <input type="number" id="hoursLong" value="4" min="0" max="12" step="0.5">
-                </div>
-                <div class="modal-actions">
-                    <button class="btn btn-primary btn-full" id="saveHours">💾 Guardar Horas</button>
-                </div>
-            </div>
+                    <div class="group">
+                        <h2 class="group-title">Jornada base</h2>
+                        <div class="card">
+                            <p class="hint">Horas que se asignan automáticamente. Puedes editar cualquier día desde el calendario.</p>
+                            <label class="field">
+                                <span>Lunes a jueves (h)</span>
+                                <input type="number" id="hoursShort" inputmode="decimal" min="0" max="24" step="0.5">
+                            </label>
+                            <label class="field">
+                                <span>Viernes y sábado (h)</span>
+                                <input type="number" id="hoursLong" inputmode="decimal" min="0" max="24" step="0.5">
+                            </label>
+                            <button class="btn btn-primary" id="saveHours">Guardar jornada</button>
+                        </div>
+                    </div>
 
-            <!-- Tab: Seguridad -->
-            <div class="settings-tab-content" id="tab-security">
-                <div class="settings-row">
-                    <label for="currentPassword">Contraseña actual</label>
-                    <input type="password" id="currentPassword" placeholder="Tu contraseña actual">
+                    <div class="group">
+                        <h2 class="group-title">Apariencia</h2>
+                        <div class="card">
+                            <div class="segmented" id="themeSegment" role="radiogroup" aria-label="Tema">
+                                <button data-theme-opt="system" role="radio">Sistema</button>
+                                <button data-theme-opt="light" role="radio">Claro</button>
+                                <button data-theme-opt="dark" role="radio">Oscuro</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="group" id="installGroup">
+                        <h2 class="group-title">App</h2>
+                        <div class="card">
+                            <div class="install-row">
+                                <img src="/icons/icon.svg" width="44" height="44" alt="">
+                                <div>
+                                    <strong>Instala Turnos en tu celular</strong>
+                                    <p class="hint" id="installHint">Úsala como app, a pantalla completa y desde tu pantalla de inicio.</p>
+                                </div>
+                            </div>
+                            <button class="btn btn-secondary" id="installBtn">
+                                <svg class="ico"><use href="#i-download"/></svg>Instalar app
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="group">
+                        <h2 class="group-title">Seguridad</h2>
+                        <div class="card">
+                            <label class="field">
+                                <span>Contraseña actual</span>
+                                <input type="password" id="currentPassword" autocomplete="current-password">
+                            </label>
+                            <label class="field">
+                                <span>Nueva contraseña</span>
+                                <input type="password" id="newPassword" autocomplete="new-password" placeholder="Mínimo 4 caracteres">
+                            </label>
+                            <label class="field">
+                                <span>Confirmar nueva contraseña</span>
+                                <input type="password" id="confirmPassword" autocomplete="new-password">
+                            </label>
+                            <button class="btn btn-secondary" id="changePasswordBtn">Cambiar contraseña</button>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-danger-text" id="logoutBtn">
+                        <svg class="ico"><use href="#i-logout"/></svg>Cerrar sesión
+                    </button>
+                    <p class="footnote">Turnos v3 · Hecho por David Vielma</p>
                 </div>
-                <div class="settings-row">
-                    <label for="newPassword">Nueva contraseña</label>
-                    <input type="password" id="newPassword" placeholder="Mínimo 4 caracteres">
-                </div>
-                <div class="settings-row">
-                    <label for="confirmPassword">Confirmar nueva contraseña</label>
-                    <input type="password" id="confirmPassword" placeholder="Repite la nueva contraseña">
-                </div>
-                <div id="passwordMessage" class="message hidden"></div>
-                <div class="modal-actions">
-                    <button class="btn btn-primary btn-full" id="changePasswordBtn">🔒 Cambiar Contraseña</button>
-                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Day sheet -->
+    <div class="sheet-backdrop" id="sheetBackdrop"></div>
+    <div class="sheet" id="daySheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-head">
+            <div>
+                <p class="eyebrow" id="sheetWeekday">Lunes</p>
+                <h3 id="sheetTitle">12 de octubre</h3>
             </div>
+            <button class="icon-btn" id="closeSheet" aria-label="Cerrar"><svg class="ico"><use href="#i-x"/></svg></button>
+        </div>
+
+        <div class="presets" id="presets">
+            <button class="preset" data-hours="0"><span class="preset-h">Libre</span><span class="preset-sub">0 h</span></button>
+            <button class="preset" data-preset="short"><span class="preset-h" id="presetShort">3 h</span><span class="preset-sub">Lun–Jue</span></button>
+            <button class="preset" data-preset="long"><span class="preset-h" id="presetLong">4 h</span><span class="preset-sub">Vie–Sáb</span></button>
+            <button class="preset" data-hours="12"><span class="preset-h">12 h</span><span class="preset-sub">Largo</span></button>
+            <button class="preset" data-hours="24"><span class="preset-h">24 h</span><span class="preset-sub">Turno 24</span></button>
+        </div>
+
+        <div class="stepper">
+            <button class="icon-btn icon-btn-lg" id="hoursMinus" aria-label="Menos"><svg class="ico"><use href="#i-minus"/></svg></button>
+            <div class="stepper-value">
+                <input type="number" id="hoursInput" inputmode="decimal" min="0" max="24" step="0.5" aria-label="Horas">
+                <span>horas</span>
+            </div>
+            <button class="icon-btn icon-btn-lg" id="hoursPlus" aria-label="Más"><svg class="ico"><use href="#i-plus"/></svg></button>
+        </div>
+        <p class="sheet-earn" id="sheetEarn">≈ $0 líquido</p>
+
+        <div class="sheet-actions">
+            <button class="btn btn-text" id="resetDayBtn"><svg class="ico"><use href="#i-reset"/></svg>Usar jornada base</button>
+            <button class="btn btn-primary btn-grow" id="saveDayBtn">Guardar</button>
         </div>
     </div>
 
-    <script src="js/app.js"></script>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="/js/app.js"></script>
 </body>
 
 </html>

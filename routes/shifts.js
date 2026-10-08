@@ -1,33 +1,37 @@
 const express = require('express');
-const { supabase } = require('../database');
+const bcrypt = require('bcryptjs');
+const { query } = require('../database');
 
 const router = express.Router();
+
+const USER_FIELDS = 'hourly_rate, hours_short, hours_long, discount_percent, theme_mode, display_name, profile_photo';
+
+const isValidYear = (y) => /^\d{4}$/.test(String(y));
+const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d));
+const toNumber = (v) => (v === undefined || v === null || v === '' ? undefined : Number(v));
+
+async function getUser(userId) {
+    const { rows } = await query(`SELECT ${USER_FIELDS} FROM users WHERE id = $1`, [userId]);
+    return rows[0];
+}
+
+async function getOverrides(userId, year) {
+    const { rows } = await query(
+        'SELECT date, hours FROM daily_shifts WHERE user_id = $1 AND date BETWEEN $2 AND $3',
+        [userId, `${year}-01-01`, `${year}-12-31`]
+    );
+    const result = {};
+    rows.forEach(s => { result[s.date] = s.hours; });
+    return result;
+}
 
 // Get daily shifts overrides for a year
 router.get('/shifts/:year', async (req, res) => {
     try {
         const { year } = req.params;
-        const userId = req.session.userId;
+        if (!isValidYear(year)) return res.status(400).json({ error: 'Año inválido' });
 
-        const startDate = `${year}-01-01`;
-        const endDate = `${year}-12-31`;
-
-        const { data: shifts, error } = await supabase
-            .from('daily_shifts')
-            .select('date, hours')
-            .eq('user_id', userId)
-            .gte('date', startDate)
-            .lte('date', endDate);
-
-        if (error) throw error;
-
-        // Return object with date keys for easier lookup
-        const result = {};
-        shifts.forEach(s => {
-            result[s.date] = s.hours;
-        });
-
-        res.json(result);
+        res.json(await getOverrides(req.session.userId, year));
     } catch (error) {
         console.error('Get shifts error:', error);
         res.status(500).json({ error: 'Error al obtener turnos' });
@@ -40,37 +44,26 @@ router.post('/shift', async (req, res) => {
         const { date, hours } = req.body;
         const userId = req.session.userId;
 
-        if (!date) {
+        if (!date || !isValidDate(date)) {
             return res.status(400).json({ error: 'Fecha requerida' });
         }
 
-        // Check if we already have an override
-        const { data: existing } = await supabase
-            .from('daily_shifts')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('date', date)
-            .single();
-
         // If hours is null, we remove the override (reset to default)
-        if (hours === null || hours === undefined) {
-            if (existing) {
-                await supabase.from('daily_shifts').delete().eq('id', existing.id);
-            }
+        if (hours === null || hours === undefined || hours === '') {
+            await query('DELETE FROM daily_shifts WHERE user_id = $1 AND date = $2', [userId, date]);
             return res.json({ success: true, message: 'Día restablecido a valor por defecto' });
         }
 
-        // Upsert logic (Insert or Update)
-        if (existing) {
-            await supabase
-                .from('daily_shifts')
-                .update({ hours })
-                .eq('id', existing.id);
-        } else {
-            await supabase
-                .from('daily_shifts')
-                .insert({ user_id: userId, date, hours });
+        const value = Number(hours);
+        if (!Number.isFinite(value) || value < 0 || value > 24) {
+            return res.status(400).json({ error: 'Horas inválidas (0 a 24)' });
         }
+
+        await query(
+            `INSERT INTO daily_shifts (user_id, date, hours) VALUES ($1, $2, $3)
+             ON CONFLICT (user_id, date) DO UPDATE SET hours = EXCLUDED.hours`,
+            [userId, date, value]
+        );
 
         res.json({ success: true, message: 'Horas actualizadas' });
     } catch (error) {
@@ -86,63 +79,32 @@ function getHoursForDate(dateStr, user, overrides) {
         return parseFloat(overrides[dateStr]);
     }
 
-    // Parse date safely avoiding UTC/timezone shifts
     const [y, m, d] = dateStr.split('-').map(Number);
-    const dateObj = new Date(y, m - 1, d);
-    const dayOfWeek = dateObj.getDay();
+    const dayOfWeek = new Date(y, m - 1, d).getDay();
 
-    // Default logic
-    // Sunday (0)
-    if (dayOfWeek === 0) return 0;
-
-    // Mon-Thu (1-4)
-    if (dayOfWeek >= 1 && dayOfWeek <= 4) return user.hours_short;
-
-    // Fri-Sat (5-6)
-    if (dayOfWeek >= 5 && dayOfWeek <= 6) return user.hours_long;
-
-    return 0;
+    if (dayOfWeek === 0) return 0;                          // Domingo
+    if (dayOfWeek >= 1 && dayOfWeek <= 4) return user.hours_short; // Lun-Jue
+    return user.hours_long;                                 // Vie-Sáb
 }
 
 // Get annual summary (Dashboard) including monthly data
 router.get('/annual-summary/:year', async (req, res) => {
     try {
         const { year } = req.params;
+        if (!isValidYear(year)) return res.status(400).json({ error: 'Año inválido' });
         const userId = req.session.userId;
 
-        // Get user settings
-        const { data: user } = await supabase
-            .from('users')
-            .select('hourly_rate, hours_short, hours_long, discount_percent, theme_mode, display_name, profile_photo')
-            .eq('id', userId)
-            .single();
+        const user = await getUser(userId);
+        const overrides = await getOverrides(userId, year);
 
-        // Get overrides for the year
-        const startDate = `${year}-01-01`;
-        const endDate = `${year}-12-31`;
-
-        const { data: shifts } = await supabase
-            .from('daily_shifts')
-            .select('date, hours')
-            .eq('user_id', userId)
-            .gte('date', startDate)
-            .lte('date', endDate);
-
-        const overrides = {};
-        if (shifts) {
-            shifts.forEach(s => {
-                overrides[s.date] = s.hours;
-            });
-        }
-
-        // Calculate stats
         let totalHours = 0;
         let totalDaysWorked = 0; // Until today
         let totalProjectedDays = 0; // Whole year
         let totalDaysOff = 0; // Excluding Sundays
+        let totalLiquidoReal = 0; // Accumulated income until today
         const monthlyData = [];
 
-        // Calculate today based on Chile/Santiago Timezone (GMT-3/GMT-4)
+        // Today in Chile/Santiago
         const santiagoDateStr = new Intl.DateTimeFormat('en-CA', {
             timeZone: 'America/Santiago',
             year: 'numeric',
@@ -151,9 +113,8 @@ router.get('/annual-summary/:year', async (req, res) => {
         }).format(new Date());
 
         const [sy, sm, sd] = santiagoDateStr.split('-').map(Number);
-        const today = new Date(sy, sm - 1, sd); // Local Midnight of Santiago/Today
-
-        let totalLiquidoReal = 0; // Accumulated income until today
+        const today = new Date(sy, sm - 1, sd);
+        const net = 1 - user.discount_percent / 100;
 
         for (let month = 1; month <= 12; month++) {
             const monthPadded = String(month).padStart(2, '0');
@@ -161,38 +122,25 @@ router.get('/annual-summary/:year', async (req, res) => {
             let monthHours = 0;
             let monthDaysWorked = 0;
             let monthDaysOff = 0;
-
             let monthLiquidoReal = 0;
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const dateStr = `${year}-${monthPadded}-${String(day).padStart(2, '0')}`;
-
-                // Parse date safely
-                const [y, m, d] = dateStr.split('-').map(Number);
-                const dateObj = new Date(y, m - 1, d); // Local time 00:00:00
-
+                const dateObj = new Date(Number(year), month - 1, day);
                 const hours = getHoursForDate(dateStr, user, overrides);
 
                 if (hours > 0) {
                     monthHours += hours;
                     totalProjectedDays++;
 
-                    // Only count as worked if date is <= today
                     if (dateObj <= today) {
                         monthDaysWorked++;
-                        // Calculate real income contribution
-                        // Note: Daily calculation avoids monthly approximation errors
-                        const dailyBruto = hours * user.hourly_rate;
-                        const dailyLiquido = dailyBruto * (1 - user.discount_percent / 100);
+                        const dailyLiquido = hours * user.hourly_rate * net;
                         totalLiquidoReal += dailyLiquido;
                         monthLiquidoReal += dailyLiquido;
                     }
-                } else {
-                    // Check if it's a working day (Mon-Sat -> 1-6)
-                    const dayOfWeek = dateObj.getDay();
-                    if (dayOfWeek !== 0) {
-                        monthDaysOff++;
-                    }
+                } else if (dateObj.getDay() !== 0) {
+                    monthDaysOff++;
                 }
             }
 
@@ -204,32 +152,26 @@ router.get('/annual-summary/:year', async (req, res) => {
                 month,
                 hours: monthHours,
                 bruto: monthHours * user.hourly_rate,
-                liquido: monthHours * user.hourly_rate * (1 - user.discount_percent / 100),
+                liquido: monthHours * user.hourly_rate * net,
                 liquidoReal: monthLiquidoReal,
-                daysWorked: monthDaysWorked, // This will be 0 for future months in terms of "worked so far" logic? 
-                // Wait, user usually wants to see projected income in monthly chart, but "days worked" strictly accumulated.
-                // Let's keep monthlyData generic but we return separate total counters.
+                daysWorked: monthDaysWorked,
                 daysOff: monthDaysOff
             });
         }
 
         const totalBruto = totalHours * user.hourly_rate;
-        const totalLiquido = totalBruto * (1 - user.discount_percent / 100);
-
-        // Average over 12 months for projection
-        const avgMonthly = totalLiquido / 12;
-        const avgMonthlyHours = totalHours / 12;
+        const totalLiquido = totalBruto * net;
 
         res.json({
             totalHours,
             totalBruto,
             totalLiquido,
-            totalLiquidoReal, // New field
+            totalLiquidoReal,
             totalDaysWorked,
             totalProjectedDays,
             totalDaysOff,
-            avgMonthlyLiquido: avgMonthly,
-            avgMonthlyHours: avgMonthlyHours,
+            avgMonthlyLiquido: totalLiquido / 12,
+            avgMonthlyHours: totalHours / 12,
             monthlyData,
             settings: {
                 hourlyRate: user.hourly_rate,
@@ -247,16 +189,9 @@ router.get('/annual-summary/:year', async (req, res) => {
 // Get user settings
 router.get('/settings', async (req, res) => {
     try {
-        const userId = req.session.userId;
-
-        const { data: user, error } = await supabase
-            .from('users')
-            .select('hourly_rate, hours_short, hours_long, discount_percent, theme_mode, display_name, profile_photo')
-            .eq('id', userId)
-            .single();
-
-        if (error) throw error;
-        res.json(user);
+        const user = await getUser(req.session.userId);
+        if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+        res.json({ ...user, username: req.session.username });
     } catch (error) {
         console.error('Get settings error:', error);
         res.status(500).json({ error: 'Error al obtener configuración' });
@@ -266,22 +201,30 @@ router.get('/settings', async (req, res) => {
 // Update user settings
 router.put('/settings', async (req, res) => {
     try {
-        const { hourlyRate, hoursShort, hoursLong, discountPercent, themeMode } = req.body;
-        const userId = req.session.userId;
+        const fields = {
+            hourly_rate: toNumber(req.body.hourlyRate),
+            hours_short: toNumber(req.body.hoursShort),
+            hours_long: toNumber(req.body.hoursLong),
+            discount_percent: toNumber(req.body.discountPercent),
+            theme_mode: req.body.themeMode
+        };
 
-        const updates = {};
-        if (hourlyRate !== undefined) updates.hourly_rate = hourlyRate;
-        if (hoursShort !== undefined) updates.hours_short = hoursShort;
-        if (hoursLong !== undefined) updates.hours_long = hoursLong;
-        if (discountPercent !== undefined) updates.discount_percent = discountPercent;
-        if (themeMode !== undefined) updates.theme_mode = themeMode;
+        const sets = [];
+        const values = [];
+        for (const [col, val] of Object.entries(fields)) {
+            if (val === undefined) continue;
+            if (col !== 'theme_mode' && !Number.isFinite(val)) {
+                return res.status(400).json({ error: 'Valores inválidos' });
+            }
+            values.push(val);
+            sets.push(`${col} = $${values.length}`);
+        }
 
-        const { error } = await supabase
-            .from('users')
-            .update(updates)
-            .eq('id', userId);
+        if (sets.length) {
+            values.push(req.session.userId);
+            await query(`UPDATE users SET ${sets.join(', ')} WHERE id = $${values.length}`, values);
+        }
 
-        if (error) throw error;
         res.json({ success: true, message: 'Configuración actualizada' });
     } catch (error) {
         console.error('Update settings error:', error);
@@ -293,24 +236,24 @@ router.put('/settings', async (req, res) => {
 router.put('/user/profile', async (req, res) => {
     try {
         const { displayName, profilePhoto } = req.body;
-        const userId = req.session.userId;
 
-        const updates = {};
-        if (displayName !== undefined) updates.display_name = displayName;
-        if (profilePhoto !== undefined) {
-            // Validate base64 size (limit to ~500KB)
-            if (profilePhoto && profilePhoto.length > 700000) {
-                return res.status(400).json({ error: 'La imagen es muy grande. Máximo 500KB' });
-            }
-            updates.profile_photo = profilePhoto;
+        if (profilePhoto && profilePhoto.length > 700000) {
+            return res.status(400).json({ error: 'La imagen es muy grande. Máximo 500KB' });
         }
 
-        const { error } = await supabase
-            .from('users')
-            .update(updates)
-            .eq('id', userId);
+        await query(
+            `UPDATE users SET
+                display_name = COALESCE($1, display_name),
+                profile_photo = CASE WHEN $2::boolean THEN $3 ELSE profile_photo END
+             WHERE id = $4`,
+            [
+                displayName === undefined ? null : displayName,
+                profilePhoto !== undefined,
+                profilePhoto || null,
+                req.session.userId
+            ]
+        );
 
-        if (error) throw error;
         res.json({ success: true, message: 'Perfil actualizado' });
     } catch (error) {
         console.error('Update profile error:', error);
@@ -332,33 +275,13 @@ router.post('/user/change-password', async (req, res) => {
             return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 4 caracteres' });
         }
 
-        // Get current user
-        const { data: user, error: fetchError } = await supabase
-            .from('users')
-            .select('password_hash')
-            .eq('id', userId)
-            .single();
-
-        if (fetchError) throw fetchError;
-
-        // Verify current password
-        const bcrypt = require('bcryptjs');
-        const isValid = await bcrypt.compare(currentPassword, user.password_hash);
-
-        if (!isValid) {
+        const { rows } = await query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+        if (!rows[0] || !(await bcrypt.compare(currentPassword, rows[0].password_hash))) {
             return res.status(401).json({ error: 'Contraseña actual incorrecta' });
         }
 
-        // Hash new password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-        // Update password
-        const { error: updateError } = await supabase
-            .from('users')
-            .update({ password_hash: hashedPassword })
-            .eq('id', userId);
-
-        if (updateError) throw updateError;
+        await query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedPassword, userId]);
 
         res.json({ success: true, message: 'Contraseña actualizada exitosamente' });
     } catch (error) {
